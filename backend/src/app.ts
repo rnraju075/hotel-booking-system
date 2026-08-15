@@ -36,7 +36,17 @@ export function configureExpressApp(
 
   app.disable("x-powered-by");
 
-  app.use(helmet());
+if (env.NODE_ENV === "development") {
+  app.use(
+    helmet({
+      contentSecurityPolicy: false
+    })
+  );
+} else {
+  app.use(
+    helmet()
+  );
+}
 
   app.use(
     cors({
