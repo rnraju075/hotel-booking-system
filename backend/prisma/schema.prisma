@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -18,24 +13,332 @@ enum UserRole {
   ADMIN
 }
 
+enum HotelStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum RoomType {
+  STANDARD
+  DELUXE
+  SUITE
+  FAMILY
+}
+
+enum RoomStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  MOCK_PROVIDER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_COMPLETED
+  PAYMENT_FAILED
+  SUPPORT_UPDATE
+  SYSTEM
+}
+
+enum SupportConversationStatus {
+  AI_ACTIVE
+  QUEUED
+  AGENT_ASSIGNED
+  RESOLVED
+  CLOSED
+}
+
+enum SupportSenderType {
+  CUSTOMER
+  AI
+  AGENT
+  SYSTEM
+}
+
+enum SupportCategory {
+  BOOKING
+  CANCELLATION
+  PAYMENT
+  REFUND
+  CHECK_IN_OUT
+  HOTEL_FACILITIES
+  ROOM_AVAILABILITY
+  ACCOUNT
+  OTHER
+}
+
 model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(320)
+  passwordHash String   @map("password_hash")
+  firstName    String   @map("first_name") @db.VarChar(100)
+  lastName     String   @map("last_name") @db.VarChar(100)
+  role         UserRole @default(CUSTOMER)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  managedHotels                Hotel[]               @relation("HotelManager")
+  bookings                     Booking[]
+  notifications                Notification[]
+  supportConversations         SupportConversation[] @relation("SupportCustomer")
+  assignedSupportConversations SupportConversation[] @relation("SupportAgent")
+  supportMessages              SupportMessage[]
+
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+model Hotel {
+  id        String @id @default(uuid()) @db.Uuid
+  managerId String @map("manager_id") @db.Uuid
+
+  name         String  @db.VarChar(200)
+  description  String? @db.Text
+  addressLine1 String  @map("address_line_1") @db.VarChar(255)
+  addressLine2 String? @map("address_line_2") @db.VarChar(255)
+  city         String  @db.VarChar(120)
+  state        String? @db.VarChar(120)
+  country      String  @db.VarChar(120)
+  postalCode   String? @map("postal_code") @db.VarChar(30)
+
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
+
+  averageRating Decimal @default(0) @map("average_rating") @db.Decimal(3, 2)
+  reviewCount   Int     @default(0) @map("review_count")
+
+  status HotelStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  manager User   @relation("HotelManager", fields: [managerId], references: [id], onDelete: Restrict)
+  rooms   Room[]
+
+  @@index([managerId])
+  @@index([city, status])
+  @@index([country, city])
+  @@index([averageRating])
+  @@map("hotels")
+}
+
+model Room {
+  id      String @id @default(uuid()) @db.Uuid
+  hotelId String @map("hotel_id") @db.Uuid
+
+  roomNumber  String   @map("room_number") @db.VarChar(30)
+  roomType    RoomType @map("room_type")
+  description String?  @db.Text
+
+  capacity  Int
+  basePrice Decimal @map("base_price") @db.Decimal(12, 2)
+  currency  String  @default("USD") @db.Char(3)
+
+  status RoomStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  hotel    Hotel     @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  bookings Booking[]
+
+  @@unique([hotelId, roomNumber])
+  @@index([hotelId, roomType, status])
+  @@index([hotelId, basePrice])
+  @@map("rooms")
+}
+
+model Booking {
   id String @id @default(uuid()) @db.Uuid
 
-  email String @unique @db.VarChar(320)
+  userId String @map("user_id") @db.Uuid
+  roomId String @map("room_id") @db.Uuid
 
-  passwordHash String @map("password_hash")
+  checkIn  DateTime @map("check_in") @db.Date
+  checkOut DateTime @map("check_out") @db.Date
 
-  firstName String @map("first_name") @db.VarChar(100)
+  guestCount Int @map("guest_count")
 
-  lastName String @map("last_name") @db.VarChar(100)
+  nightlyRate Decimal @map("nightly_rate") @db.Decimal(12, 2)
+  totalAmount Decimal @map("total_amount") @db.Decimal(12, 2)
+  currency    String  @default("USD") @db.Char(3)
 
-  role UserRole @default(CUSTOMER)
+  status BookingStatus @default(PENDING_PAYMENT)
 
-  isActive Boolean @default(true) @map("is_active")
+  confirmedAt  DateTime? @map("confirmed_at")
+  cancelledAt  DateTime? @map("cancelled_at")
+  cancelReason String?   @map("cancel_reason") @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  payments Payment[]
+  review   Review?
+
+  @@index([userId, createdAt])
+  @@index([roomId, checkIn, checkOut, status])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Payment {
+  id String @id @default(uuid()) @db.Uuid
+
+  bookingId String @map("booking_id") @db.Uuid
+
+  method PaymentMethod
+  status PaymentStatus @default(PENDING)
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("USD") @db.Char(3)
+
+  provider          String? @db.VarChar(100)
+  providerReference String? @unique @map("provider_reference") @db.VarChar(255)
+
+  failureCode    String? @map("failure_code") @db.VarChar(100)
+  failureMessage String? @map("failure_message") @db.Text
+
+  processedAt DateTime? @map("processed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId, status])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+model Review {
+  id String @id @default(uuid()) @db.Uuid
+
+  bookingId String @unique @map("booking_id") @db.Uuid
+
+  rating  Int
+  comment String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([rating])
+  @@map("reviews")
+}
+
+model Notification {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+
+  type NotificationType
+
+  title   String @db.VarChar(200)
+  message String @db.Text
+  payload Json?
+
+  isRead Boolean   @default(false) @map("is_read")
+  readAt DateTime? @map("read_at")
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+model SupportConversation {
+  id String @id @default(uuid()) @db.Uuid
+
+  customerId      String  @map("customer_id") @db.Uuid
+  assignedAgentId String? @map("assigned_agent_id") @db.Uuid
+
+  category SupportCategory
+  subject  String?         @db.VarChar(255)
+
+  status SupportConversationStatus @default(AI_ACTIVE)
+
+  queueJoinedAt DateTime? @map("queue_joined_at")
+  assignedAt    DateTime? @map("assigned_at")
+  resolvedAt    DateTime? @map("resolved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("users")
+  customer      User  @relation("SupportCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  assignedAgent User? @relation("SupportAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+
+  messages SupportMessage[]
+
+  @@index([customerId, createdAt])
+  @@index([assignedAgentId, status])
+  @@index([status, createdAt])
+  @@map("support_conversations")
+}
+
+model SupportMessage {
+  id String @id @default(uuid()) @db.Uuid
+
+  conversationId String  @map("conversation_id") @db.Uuid
+  senderId       String? @map("sender_id") @db.Uuid
+
+  senderType SupportSenderType @map("sender_type")
+  content    String            @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  sender       User?               @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+  @@map("support_messages")
+}
+
+model SupportFaq {
+  id String @id @default(uuid()) @db.Uuid
+
+  category SupportCategory
+
+  question String @db.VarChar(500)
+  answer   String @db.Text
+
+  isActive  Boolean @default(true) @map("is_active")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([category, isActive, sortOrder])
+  @@map("support_faqs")
 }
