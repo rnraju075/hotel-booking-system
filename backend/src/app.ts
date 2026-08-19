@@ -17,8 +17,8 @@ import {
 } from "./infrastructure/graphql/graphql-context.js";
 
 import { healthRouter } from "./modules/health/health.routes.js";
-import { errorHandler } from "./src/common/middleware/error-handler.middleware.js";
-import { notFoundHandler } from "./src/common/middleware/not-found.middleware.js";
+import { errorHandler } from "./common/middleware/error-handler.middleware.js";
+import { notFoundHandler } from "./common/middleware/not-found.middleware.js";
 
 export function createExpressApp(): Express {
   return express();

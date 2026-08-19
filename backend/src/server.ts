@@ -9,7 +9,11 @@ import { env } from "./config/env.js";
 
 import { createGraphQLServer } from "./infrastructure/graphql/graphql-server.js";
 
+
 import { logger } from "./infrastructure/logger/logger.js";
+import {
+  prisma
+} from "./infrastructure/database/prisma.js";
 
 const app =
   createExpressApp();
@@ -66,7 +70,8 @@ const shutdown = async (
 
   try {
     await apolloServer.stop();
-
+    await prisma.$disconnect();
+    
     logger.info(
       "Application shut down successfully"
     );
