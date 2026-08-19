@@ -14,7 +14,14 @@ const envSchema = z.object({
 
   CORS_ORIGIN: z
     .string()
-    .default("http://localhost:5173")
+    .default("http://localhost:5173"),
+
+  DATABASE_URL: z
+  .string()
+  .regex(
+    /^postgres(?:ql)?:\/\//,
+    "DATABASE_URL must be a PostgreSQL connection string"
+  ),
 });
 
 const result = envSchema.safeParse(process.env);
