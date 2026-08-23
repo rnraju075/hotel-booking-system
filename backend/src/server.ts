@@ -8,7 +8,9 @@ import {
 import { env } from "./config/env.js";
 
 import { createGraphQLServer } from "./infrastructure/graphql/graphql-server.js";
-
+  import {
+  createApplicationContainer
+} from "./app/application-container.js";
 
 import { logger } from "./infrastructure/logger/logger.js";
 import {
@@ -21,9 +23,15 @@ const app =
 const httpServer =
   createServer(app);
 
+
+
+const container =
+  createApplicationContainer();
+
 const apolloServer =
   createGraphQLServer(
-    httpServer
+    httpServer,
+    container
   );
 
 await apolloServer.start();

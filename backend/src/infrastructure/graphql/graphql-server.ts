@@ -1,32 +1,48 @@
-import { ApolloServer } from "@apollo/server";
-import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import {
+  ApolloServer
+} from "@apollo/server";
 
-import type { Server } from "node:http";
+import {
+  ApolloServerPluginDrainHttpServer
+} from "@apollo/server/plugin/drainHttpServer";
 
-import { env } from "../../config/env.js";
+import type {
+  Server
+} from "node:http";
 
-import { systemTypeDefs } from "../../modules/system/system.schema.js";
-import { SystemService } from "../../modules/system/system.service.js";
-import { createSystemResolvers } from "../../modules/system/system.resolvers.js";
+import type {
+  ApplicationContainer
+} from "../../app/application-container.js";
 
-import type { GraphQLContext } from "./graphql-context.js";
+import {
+  systemTypeDefs
+} from "../../modules/system/system.schema.js";
+
+import {
+  createSystemResolvers
+} from "../../modules/system/system.resolvers.js";
+
+import type {
+  GraphQLContext
+} from "./graphql-context.js";
 
 export function createGraphQLServer(
-  httpServer: Server
+  httpServer: Server,
+  container:
+    ApplicationContainer
 ): ApolloServer<GraphQLContext> {
-  const systemService =
-    new SystemService();
 
-  return new ApolloServer<GraphQLContext>({
-    typeDefs: systemTypeDefs,
+  return new ApolloServer<
+    GraphQLContext
+  >({
+
+    typeDefs:
+      systemTypeDefs,
 
     resolvers:
       createSystemResolvers(
-        systemService
+        container.systemService
       ),
-
-    introspection:
-      env.NODE_ENV !== "production",
 
     plugins: [
       ApolloServerPluginDrainHttpServer({
