@@ -5,7 +5,10 @@ import {
 import {
   SystemService
 } from "../modules/system/system.service.js";
-import { createUsersModule, UsersModule } from "../modules/users/application/users.module.js";
+import {
+  createUsersModule,
+  type UsersModule
+} from "../modules/users/users.module.js";
 
 export interface ApplicationContainer {
 

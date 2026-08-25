@@ -7,6 +7,8 @@ import type {
 } from "../domain/user.entity.js";
 
 import type {
+  CreateUserData,
+  UpdateUserProfileData,
   UserRepository
 } from "../application/user.repository.js";
 
@@ -18,31 +20,83 @@ export class PrismaUserRepository
       PrismaClient
   ) {}
 
-  async findById(
-    id: string
-  ): Promise<UserEntity | null> {
+  async create(
+    data: CreateUserData
+  ): Promise<UserEntity> {
 
     const user =
-      await this.prisma.user.findUnique({
-        where: {
-          id
+      await this.prisma.user.create({
+        data: {
+          email:
+            data.email,
+
+          passwordHash:
+            data.passwordHash,
+
+          firstName:
+            data.firstName,
+
+          lastName:
+            data.lastName,
+
+          ...(data.role !== undefined
+            ? {
+                role: data.role
+              }
+            : {})
         }
       });
 
     return user;
   }
 
+  async findById(
+    id: string
+  ): Promise<UserEntity | null> {
+
+    return this.prisma.user.findUnique({
+      where: {
+        id
+      }
+    });
+  }
+
   async findByEmail(
     email: string
   ): Promise<UserEntity | null> {
 
-    const user =
-      await this.prisma.user.findUnique({
-        where: {
-          email
-        }
-      });
+    return this.prisma.user.findUnique({
+      where: {
+        email
+      }
+    });
+  }
 
-    return user;
+  async updateProfile(
+    id: string,
+    data: UpdateUserProfileData
+  ): Promise<UserEntity> {
+
+    return this.prisma.user.update({
+      where: {
+        id
+      },
+
+      data: {
+        ...(data.firstName !== undefined
+          ? {
+              firstName:
+                data.firstName
+            }
+          : {}),
+
+        ...(data.lastName !== undefined
+          ? {
+              lastName:
+                data.lastName
+            }
+          : {})
+      }
+    });
   }
 }
